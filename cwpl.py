@@ -10,6 +10,7 @@ def cli():
 def init_db():
     """initialize DB on first run"""
     print("Initialize DB!")
+    cwpl.init_db()
 
 @cli.command()
 def run():
