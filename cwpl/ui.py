@@ -1,17 +1,62 @@
+from datetime import date, timedelta
+import json
 from os import path
+import os
+import subprocess
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from tkcalendar import Calendar
 
-from .db import get_all_users, add_user, delete_users_by_name
-from .db import get_all_paths, add_path, delete_paths_by_folder
+from db import get_all_users, add_user, delete_users_by_name
+from db import get_all_paths, add_path, delete_paths_by_folder
+
+
+def get_previous_month_end():
+    """Returns previous month"""
+    today = date.today()
+    return date(today.year, today.month, 1) + timedelta(-2)
+
+
+def get_git_log(path, after):
+    """Returns git log"""
+    # git log --pretty=format:'{%n  \"commit\": \"%H\",%n  \"author\": \"%an\",%n  \"date\": \"%ad\",%n  \"message\": \"%f\"%n},'
+
+    res = []
+    cwd = os.getcwd()
+    try:
+        os.chdir(path)
+        process = subprocess.Popen(
+            [
+                "git",
+                "log",
+                r'--pretty=format:{"commit": "%H", "author": "%an", "date": "%ad", "message": "%f"},',
+                "--after",
+                after,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        out, err = process.communicate()
+        if err:
+            print(err.decode("utf-8").splitlines())
+            return res
+        raw_res = out.decode("utf-8")
+        if raw_res.endswith(","):
+            raw_res = raw_res[:-1]
+        json_res = "[" + raw_res + "]"
+        res = json.loads(json_res)
+    except Exception as e:
+        print(f"EXCEPTION: {e}")
+        return res
+    finally:
+        os.chdir(cwd)
+    return res
 
 
 def show():
     """Shows Tk UI"""
 
     def cb_add_folder():
-
         folder = filedialog.askdirectory()
         if not folder:
             return
@@ -80,8 +125,19 @@ def show():
         for user in users:
             users_list.insert(tk.END, user)
 
+    def cb_run_report():
+        folders = folders_list.get(0, tk.END)
+        users = users_list.get(0, tk.END)
+        if not folders or not users:
+            return
+
+        after = data_calendar.get_date()
+        print(after)
+        res = get_git_log(folders[0], after)
+        print(res)
+
     root = tk.Tk()
-    root.geometry("400x400")
+    root.geometry("1600x800")
     root.title("CWPL generator")
 
     # folders frame
@@ -107,6 +163,25 @@ def show():
     tk.Button(master=users_frame, text="-", command=cb_del_user).pack()
 
     users_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
+
+    # gather data
+    data_frame = tk.LabelFrame(master=root, height=200, text=" gathering data...")
+    dt = get_previous_month_end()
+
+    data_calendar = Calendar(
+        master=data_frame,
+        selectmode="day",
+        date_pattern=r"y-mm-dd",
+        year=dt.year,
+        month=dt.month,
+        day=dt.day,
+    )
+    data_calendar.grid(row=0, column=0)
+    tk.Button(master=data_frame, text="CREATE!", command=cb_run_report).grid(
+        row=1, column=0
+    )
+
+    data_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
 
     # Update list of folders
     list_all_folders()
