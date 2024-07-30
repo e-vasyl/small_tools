@@ -46,7 +46,7 @@ def get_all_users():
 
 
 def add_user(name):
-    with Session(sql_engine) as session:
+    with Session(sql_engine, expire_on_commit=False) as session:
         user = User(name=name)
         session.add(user)
         session.commit()
@@ -54,7 +54,7 @@ def add_user(name):
 
 
 def add_path(folder):
-    with Session(sql_engine) as session:
+    with Session(sql_engine, expire_on_commit=False) as session:
         path = Path(folder=folder)
         session.add(path)
         session.commit()
@@ -68,8 +68,42 @@ def delete_users(ids):
         return res.rowcount
 
 
+def delete_users_by_name(name):
+    with Session(sql_engine) as session:
+        res = session.execute(sa.delete(User).where(User.name == name))
+        session.commit()
+        return res.rowcount
+
+
 def delete_paths(ids):
     with Session(sql_engine) as session:
         res = session.execute(sa.delete(Path).where(Path.id.in_(ids)))
         session.commit()
         return res.rowcount
+
+
+def delete_paths_by_folder(folder):
+    with Session(sql_engine) as session:
+        res = session.execute(sa.delete(Path).where(Path.folder == folder))
+        session.commit()
+        return res.rowcount
+
+
+def update_user(id, new_name):
+    with Session(sql_engine, expire_on_commit=False) as session:
+        user = session.query(User).filter(User.id == id).first()
+        if user is None:
+            return None
+        user.name = new_name
+        session.commit()
+        return user
+
+
+def update_path(id, new_folder):
+    with Session(sql_engine, expire_on_commit=False) as session:
+        path = session.query(Path).filter(Path.id == id).first()
+        if path is None:
+            return None
+        path.folder = new_folder
+        session.commit()
+        return path
