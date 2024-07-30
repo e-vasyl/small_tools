@@ -22,9 +22,6 @@ def init_db():
 def run():
     """run CWPL report generator [DEFAULT]"""
     print("Run!")
-    #    print(cwpl.add_user("test"))
-    #    print("deleted:",cwpl.delete_users([5,6]))
-    #    print (cwpl.get_all_users())
     cwpl.show()
 
 

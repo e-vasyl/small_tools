@@ -8,6 +8,7 @@ from .db import get_all_paths, add_path, delete_paths_by_folder
 
 
 def show():
+    """Shows Tk UI"""
 
     def cb_add_folder():
 
