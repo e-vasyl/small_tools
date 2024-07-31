@@ -158,7 +158,8 @@ def show():
             users_list.insert(tk.END, user)
 
     def cb_get_git_log_data():
-        treeview_data.delete()
+        for c in treeview_data.get_children():
+            treeview_data.delete(c)
 
         folders = folders_list.get(0, tk.END)
         users = users_list.get(0, tk.END)
