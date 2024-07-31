@@ -29,6 +29,11 @@ class User(Base):
 
 class Config(Base):
     DEF_DATE_FORMAT = "date_format"
+    DEF_GIT_LOG_FORMAT = "git_log_format"
+    DEF_DATE_FORMAT_VALUE = r"%a %b %d %H:%M:%S %Y %z"
+    DEF_GIT_LOG_FORMAT_VALUE = (
+        r'{"commit": "%H", "author": "%an", "date": "%ad", "message": "%f"},'
+    )
 
     __tablename__ = "config"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -49,7 +54,12 @@ def init_db():
     with Session(sql_engine) as session:
         session.execute(sa.delete(Config))
         session.add(
-            Config(name=Config.DEF_DATE_FORMAT, value=r"%a %b %d %H:%M:%S %Y %z"),
+            Config(name=Config.DEF_DATE_FORMAT, value=Config.DEF_DATE_FORMAT_VALUE),
+        )
+        session.add(
+            Config(
+                name=Config.DEF_GIT_LOG_FORMAT, value=Config.DEF_GIT_LOG_FORMAT_VALUE
+            ),
         )
         session.commit()
 

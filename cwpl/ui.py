@@ -17,7 +17,7 @@ def get_previous_month_end(today):
     return date(today.year, today.month, 1) + timedelta(-2)
 
 
-def get_git_log(path, after):
+def get_git_log(path, after, git_log_format):
     """Returns git log"""
     # git log --pretty=format:'{%n  \"commit\": \"%H\",%n  \"author\": \"%an\",%n  \"date\": \"%ad\",%n  \"message\": \"%f\"%n},'
 
@@ -29,7 +29,7 @@ def get_git_log(path, after):
             [
                 "git",
                 "log",
-                r'--pretty=format:{"commit": "%H", "author": "%an", "date": "%ad", "message": "%f"},',
+                f"--pretty=format:{git_log_format}",
                 "--after",
                 after,
             ],
@@ -165,17 +165,19 @@ def show():
         if not folders or not users:
             return
 
+        git_log_format = var_git_log_format.get()
+        date_format = var_date_format.get()
+
         unexisting_folders = get_unexisted_folders(folders)
         if unexisting_folders:
             tk.messagebox.showerror("Error", f"Folders not found: {unexisting_folders}")
             return
 
         after = data_calendar.get_date()
-        raw_git_log = get_git_log(folders[0], after)
+        raw_git_log = get_git_log(folders[0], after, git_log_format)
         if not raw_git_log:
             return
 
-        date_format = config[Config.DEF_DATE_FORMAT]
         entries = [transform_log_entry(entry, date_format) for entry in raw_git_log]
 
         entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
@@ -188,18 +190,6 @@ def show():
                 values=(entry[Entry.AUTHOR], entry[Entry.DATE], entry[Entry.MESSAGE]),
             )
 
-    def cb_date_format_changed(event):
-        new_date_format = var_date_format.get()
-        old_date_format = config[Config.DEF_DATE_FORMAT]
-        if new_date_format == old_date_format:
-            return
-
-        if not update_config_by_name(Config.DEF_DATE_FORMAT, new_date_format):
-            tk.messagebox.showerror("Error", "Failed to update config")
-            var_date_format.set(old_date_format)
-            return
-        config[Config.DEF_DATE_FORMAT] = new_date_format
-
     config = {}
     for cfg in get_all_configs():
         config[cfg.name] = cfg.value
@@ -207,9 +197,6 @@ def show():
     root = tk.Tk()
     root.geometry("1600x800")
     root.title("CWPL generator")
-
-    # variables
-    var_date_format = tk.StringVar(value=config[Config.DEF_DATE_FORMAT])
 
     # create tab control
     tab_control = ttk.Notebook(master=root)
@@ -249,11 +236,52 @@ def show():
 
     # settings frame
     settings_frame = tk.LabelFrame(master=config_tab, text=" settings: ")
-    tk.Label(master=settings_frame, text="date format: ").pack(side=tk.LEFT)
-    __date_fmt_entry = tk.Entry(master=settings_frame, textvariable=var_date_format)
-    __date_fmt_entry.bind("<FocusOut>", cb_date_format_changed)
-    __date_fmt_entry.pack(side=tk.LEFT, expand=True, fill=tk.X)
+
+    def create_config_ui(master, text, row, config_name, default_value):
+        var_value = tk.StringVar(value=config[config_name])
+
+        def cb_value_changed(event):
+            new_value = var_value.get()
+            old_value = config[config_name]
+            if new_value == old_value:
+                return
+
+            if not update_config_by_name(config_name, new_value):
+                tk.messagebox.showerror("Error", "Failed to update config")
+                var_value.set(old_value)
+                return
+            config[config_name] = new_value
+
+        def cb_set_default():
+            var_value.set(default_value)
+            cb_value_changed(None)
+
+        tk.Label(master=master, text=text).grid(row=row, column=0)
+        __entry = tk.Entry(master=master, textvariable=var_value)
+        __entry.bind("<FocusOut>", cb_value_changed)
+        __entry.grid(row=row, column=1, sticky=tk.EW)
+        tk.Button(master=settings_frame, text="default", command=cb_set_default).grid(
+            row=row, column=2
+        )
+        return var_value
+
+    var_date_format = create_config_ui(
+        settings_frame,
+        "date format: ",
+        0,
+        Config.DEF_DATE_FORMAT,
+        Config.DEF_DATE_FORMAT_VALUE,
+    )
+    var_git_log_format = create_config_ui(
+        settings_frame,
+        "git log format: ",
+        1,
+        Config.DEF_GIT_LOG_FORMAT,
+        Config.DEF_GIT_LOG_FORMAT_VALUE,
+    )
+
     settings_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
+    settings_frame.columnconfigure(1, weight=1)
 
     # gather data
     data_frame = tk.LabelFrame(master=report_tab, height=200, text=" gathering data...")
