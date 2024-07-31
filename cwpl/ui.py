@@ -56,6 +56,9 @@ def get_git_log(path, after):
 class Entry:
     """Git log entry"""
 
+    COMMIT = "commit"
+    AUTHOR = "author"
+    MESSAGE = "message"
     DATE = "date"
     DATE_PARSED = "x_date"
 
@@ -155,6 +158,8 @@ def show():
             users_list.insert(tk.END, user)
 
     def cb_get_git_log_data():
+        treeview_data.delete()
+
         folders = folders_list.get(0, tk.END)
         users = users_list.get(0, tk.END)
         if not folders or not users:
@@ -171,9 +176,17 @@ def show():
             return
 
         date_format = config[Config.DEF_DATE_FORMAT]
-        res = [transform_log_entry(entry, date_format) for entry in raw_git_log]
+        entries = [transform_log_entry(entry, date_format) for entry in raw_git_log]
 
-        print(res)
+        entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
+
+        for entry in entries:
+            treeview_data.insert(
+                "",
+                tk.END,
+                text=entry[Entry.COMMIT],
+                values=(entry[Entry.AUTHOR], entry[Entry.DATE], entry[Entry.MESSAGE]),
+            )
 
     def cb_date_format_changed(event):
         new_date_format = var_date_format.get()
@@ -257,9 +270,30 @@ def show():
     data_calendar.grid(row=0, column=0)
     tk.Button(
         master=data_frame, text="FETCH GIT LOG", command=cb_get_git_log_data
-    ).grid(row=1, column=0)
+    ).grid(row=1, column=0, sticky=tk.NW)
+
+    treeview_data = ttk.Treeview(
+        master=data_frame, columns=(Entry.AUTHOR, Entry.DATE, Entry.MESSAGE)
+    )
+    treeview_data.heading("#0", text="Commit")
+    treeview_data.heading(Entry.AUTHOR, text="Author")
+    treeview_data.heading(Entry.DATE, text="Date")
+    treeview_data.heading(Entry.MESSAGE, text="Message")
+    treeview_data.grid(row=0, column=1, rowspan=2, sticky=tk.NSEW)
+
+    __scroll_treeview_data = ttk.Scrollbar(
+        data_frame, orient=tk.VERTICAL, command=treeview_data.yview
+    )
+    __scroll_treeview_data.grid(row=0, column=2, rowspan=2, sticky=tk.NS)
+    treeview_data.configure(yscrollcommand=__scroll_treeview_data.set)
+
+    # TODO: remove panel?
+    __date_btn_panel = tk.Frame(master=data_frame)
+    tk.Button(master=__date_btn_panel, text=">>").pack(side=tk.TOP)
+    __date_btn_panel.grid(row=0, column=3, sticky=tk.NW)
 
     data_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
+    data_frame.columnconfigure(1, weight=1)
 
     # Update list of folders
     list_all_folders()
