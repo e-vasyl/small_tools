@@ -41,9 +41,19 @@ def get_git_log(path, after, git_log_format):
             print(err.decode("utf-8").splitlines())
             return res
         raw_res = out.decode("utf-8")
-        if raw_res.endswith(","):
-            raw_res = raw_res[:-1]
-        json_res = "[" + raw_res + "]"
+
+        # join multilines to pass into JSON parser
+        joined_res = ""
+        for line in raw_res.splitlines():
+            joined_res += line
+            if not line.endswith("},"):
+                joined_res += "\\n"
+
+        # remove last comma
+        if joined_res.endswith(","):
+            joined_res = joined_res[:-1]
+
+        json_res = "[" + joined_res + "]"
         res = json.loads(json_res)
     except Exception as e:
         print(f"EXCEPTION: {e}")
