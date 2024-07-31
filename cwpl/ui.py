@@ -214,6 +214,44 @@ def show():
             for line in lines[1:]:
                 treeview_data.insert(line_item, tk.END, text="", values=("", "", line))
 
+    def cb_append_to_report():
+        """append item from treeview to report"""
+
+        selected = treeview_data.selection()
+        if not selected:
+            return
+
+        report_logs = []
+        for sel in selected:
+            # TODO: add parent if it was not already selected
+            if treeview_data.parent(sel):
+                continue
+
+            # TODO: use dictionary of model data, not treeview representation
+            item = treeview_data.item(sel)
+            text = item["text"]
+            values = item["values"]
+            children = treeview_data.get_children(sel)
+            for child in children:
+                child_item = treeview_data.item(child)
+                if child_item["text"]:
+                    text += f"\n{child_item['text']}"
+                for i, value in enumerate(child_item["values"]):
+                    if value:
+                        values[i] += f"\n{value}"
+
+            report_logs.append([text] + values)
+
+        for report in report_logs:
+            report_text.insert(
+                tk.END,
+                "\n"
+                + f"*Commit* :{report[0]}\n"
+                + f"*Date* :{report[2]}\n"
+                + "\n\n"
+                + f"{report[3]}\n",
+            )
+
     config = {}
     for cfg in get_all_configs():
         config[cfg.name] = cfg.value
@@ -344,13 +382,13 @@ def show():
         owner.configure(yscrollcommand=vs.set)
         return vs
 
-    create_vs(data_frame, treeview_data).grid(
-        row=0, column=2, rowspan=2, sticky=tk.NS
-    )
+    create_vs(data_frame, treeview_data).grid(row=0, column=2, rowspan=2, sticky=tk.NS)
 
     # TODO: remove panel?
     __date_btn_panel = tk.Frame(master=data_frame)
-    tk.Button(master=__date_btn_panel, text=">>").pack(side=tk.TOP)
+    tk.Button(master=__date_btn_panel, text=">>", command=cb_append_to_report).pack(
+        side=tk.TOP
+    )
     __date_btn_panel.grid(row=0, column=3, sticky=tk.NW)
 
     data_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
@@ -363,6 +401,12 @@ def show():
     report_text.config(spacing3=5, spacing2=2)
     # report_text.grid(row=0, column=0, sticky=tk.NSEW)
     report_text.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+
+    # bind handler of <ctrl-a> to report text widget
+    report_text.bind(
+        "<Control-KeyRelease-a>",
+        lambda event: event.widget.tag_add(tk.SEL, "1.0", tk.END),
+    )
     __report_text_frame.grid(row=0, column=0, sticky=tk.NSEW)
     create_vs(report_frame, report_text).grid(row=0, column=1, sticky=tk.NS)
 
