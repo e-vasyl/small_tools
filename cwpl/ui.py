@@ -173,7 +173,7 @@ def show():
 
         folders = folders_list.get(0, tk.END)
         users = users_list.get(0, tk.END)
-        if not folders or not users:
+        if not folders:
             return
 
         git_log_format = var_git_log_format.get()
@@ -189,17 +189,30 @@ def show():
         if not raw_git_log:
             return
 
-        entries = [transform_log_entry(entry, date_format) for entry in raw_git_log]
+        filtered_git_log = []
+        for git_log in raw_git_log:
+            for author in users:
+                if author in git_log[Entry.AUTHOR]:
+                    filtered_git_log.append(git_log)
+                    break
+
+        entries = [
+            transform_log_entry(entry, date_format) for entry in filtered_git_log
+        ]
 
         entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
 
         for entry in entries:
-            treeview_data.insert(
+            lines = [l for l in entry[Entry.MESSAGE].split("\n") if l.strip()]
+
+            line_item = treeview_data.insert(
                 "",
                 tk.END,
                 text=entry[Entry.COMMIT],
-                values=(entry[Entry.AUTHOR], entry[Entry.DATE], entry[Entry.MESSAGE]),
+                values=(entry[Entry.AUTHOR], entry[Entry.DATE], lines[0]),
             )
+            for line in lines[1:]:
+                treeview_data.insert(line_item, tk.END, text="", values=("", "", line))
 
     config = {}
     for cfg in get_all_configs():
