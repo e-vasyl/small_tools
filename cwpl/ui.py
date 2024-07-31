@@ -11,9 +11,8 @@ from db import get_all_users, add_user, delete_users_by_name
 from db import get_all_paths, add_path, delete_paths_by_folder
 
 
-def get_previous_month_end():
+def get_previous_month_end(today):
     """Returns previous month"""
-    today = date.today()
     return date(today.year, today.month, 1) + timedelta(-2)
 
 
@@ -166,7 +165,7 @@ def show():
 
     # gather data
     data_frame = tk.LabelFrame(master=root, height=200, text=" gathering data...")
-    dt = get_previous_month_end()
+    dt = get_previous_month_end(date.today())
 
     data_calendar = Calendar(
         master=data_frame,
