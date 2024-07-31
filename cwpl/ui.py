@@ -344,7 +344,7 @@ def show():
         owner.configure(yscrollcommand=vs.set)
         return vs
 
-    create_vs(treeview_data, treeview_data).grid(
+    create_vs(data_frame, treeview_data).grid(
         row=0, column=2, rowspan=2, sticky=tk.NS
     )
 
