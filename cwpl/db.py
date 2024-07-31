@@ -8,7 +8,7 @@ class Base(DeclarativeBase):
     pass
 
 
-# mapped class
+# mapped classes
 class Path(Base):
     __tablename__ = "path"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -27,12 +27,31 @@ class User(Base):
         return f"User({self.id!r},'{self.name!r}')"
 
 
+class Config(Base):
+    DEF_DATE_FORMAT = "date_format"
+
+    __tablename__ = "config"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(256), unique=True)
+    value = Column(String(4096))
+
+    def __repr__(self):
+        return f"Config({self.id!r},'{self.name!r}', '{self.value!r}')"
+
+
 sql_uri = "sqlite:///cwpl.sqlite"
 sql_engine = sa.create_engine(sql_uri)
 
 
 def init_db():
     Base.metadata.create_all(sql_engine)
+
+    with Session(sql_engine) as session:
+        session.execute(sa.delete(Config))
+        session.add(
+            Config(name=Config.DEF_DATE_FORMAT, value=r"%a %b %d %H:%M:%S %Y %z"),
+        )
+        session.commit()
 
 
 def get_all_paths():
@@ -43,6 +62,11 @@ def get_all_paths():
 def get_all_users():
     with Session(sql_engine) as session:
         return session.query(User).all()
+
+
+def get_all_configs():
+    with Session(sql_engine) as session:
+        return session.query(Config).all()
 
 
 def add_user(name):
@@ -107,3 +131,13 @@ def update_path(id, new_folder):
         path.folder = new_folder
         session.commit()
         return path
+
+
+def update_config_by_name(config_name, new_config_value):
+    with Session(sql_engine, expire_on_commit=False) as session:
+        config = session.query(Config).filter(Config.name == config_name).first()
+        if config is None:
+            return None
+        config.value = new_config_value
+        session.commit()
+        return config

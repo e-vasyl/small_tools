@@ -1,14 +1,15 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import json
 from os import path
 import os
 import subprocess
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import ttk
 from tkcalendar import Calendar
 
 from db import get_all_users, add_user, delete_users_by_name
 from db import get_all_paths, add_path, delete_paths_by_folder
+from db import get_all_configs, update_config_by_name, Config
 
 
 def get_previous_month_end(today):
@@ -52,11 +53,40 @@ def get_git_log(path, after):
     return res
 
 
+class Entry:
+    """Git log entry"""
+
+    DATE = "date"
+    DATE_PARSED = "x_date"
+
+
+def transform_log_entry(git_log_entry, date_format):
+    """Add data to log entry:
+    * convert date
+    * extract comments
+    """
+
+    date = datetime.strptime(git_log_entry[Entry.DATE], date_format)
+    git_log_entry[Entry.DATE_PARSED] = date
+    return git_log_entry
+
+
+def get_unexisted_folders(folders_list):
+    """Get unexisted folders"""
+
+    folders = []
+    for i in folders_list:
+        if not path.exists(i):
+            folders.append(i)
+
+    return folders
+
+
 def show():
     """Shows Tk UI"""
 
     def cb_add_folder():
-        folder = filedialog.askdirectory()
+        folder = tk.filedialog.askdirectory()
         if not folder:
             return
 
@@ -124,24 +154,63 @@ def show():
         for user in users:
             users_list.insert(tk.END, user)
 
-    def cb_run_report():
+    def cb_get_git_log_data():
         folders = folders_list.get(0, tk.END)
         users = users_list.get(0, tk.END)
         if not folders or not users:
             return
 
+        unexisting_folders = get_unexisted_folders(folders)
+        if unexisting_folders:
+            tk.messagebox.showerror("Error", f"Folders not found: {unexisting_folders}")
+            return
+
         after = data_calendar.get_date()
-        print(after)
-        res = get_git_log(folders[0], after)
+        raw_git_log = get_git_log(folders[0], after)
+        if not raw_git_log:
+            return
+
+        date_format = config[Config.DEF_DATE_FORMAT]
+        res = [transform_log_entry(entry, date_format) for entry in raw_git_log]
+
         print(res)
+
+    def cb_date_format_changed(event):
+        new_date_format = var_date_format.get()
+        old_date_format = config[Config.DEF_DATE_FORMAT]
+        if new_date_format == old_date_format:
+            return
+
+        if not update_config_by_name(Config.DEF_DATE_FORMAT, new_date_format):
+            tk.messagebox.showerror("Error", "Failed to update config")
+            var_date_format.set(old_date_format)
+            return
+        config[Config.DEF_DATE_FORMAT] = new_date_format
+
+    config = {}
+    for cfg in get_all_configs():
+        config[cfg.name] = cfg.value
 
     root = tk.Tk()
     root.geometry("1600x800")
     root.title("CWPL generator")
 
+    # variables
+    var_date_format = tk.StringVar(value=config[Config.DEF_DATE_FORMAT])
+
+    # create tab control
+    tab_control = ttk.Notebook(master=root)
+
+    config_tab = ttk.Frame(tab_control)
+    report_tab = ttk.Frame(tab_control)
+
+    tab_control.add(report_tab, text="Report")
+    tab_control.add(config_tab, text="Config")
+    tab_control.pack(fill=tk.BOTH, expand=True)
+
     # folders frame
     folders_frame = tk.LabelFrame(
-        master=root, height=200, text=" folders to be processed: "
+        master=config_tab, height=200, text=" folders to be processed: "
     )
     folders_list = tk.Listbox(master=folders_frame, selectmode=tk.SINGLE)
     folders_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -152,7 +221,9 @@ def show():
     folders_frame.pack(side=tk.TOP, anchor=tk.NE, expand=True, fill=tk.X, pady=10)
 
     # user frame
-    users_frame = tk.LabelFrame(master=root, height=200, text=" authors to look for: ")
+    users_frame = tk.LabelFrame(
+        master=config_tab, height=200, text=" authors to look for: "
+    )
     users_entry = tk.Entry(master=users_frame)
     users_entry.pack(side=tk.TOP, fill=tk.X, expand=True)
     users_list = tk.Listbox(master=users_frame, selectmode=tk.SINGLE, height=5)
@@ -163,8 +234,16 @@ def show():
 
     users_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
 
+    # settings frame
+    settings_frame = tk.LabelFrame(master=config_tab, text=" settings: ")
+    tk.Label(master=settings_frame, text="date format: ").pack(side=tk.LEFT)
+    __date_fmt_entry = tk.Entry(master=settings_frame, textvariable=var_date_format)
+    __date_fmt_entry.bind("<FocusOut>", cb_date_format_changed)
+    __date_fmt_entry.pack(side=tk.LEFT, expand=True, fill=tk.X)
+    settings_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
+
     # gather data
-    data_frame = tk.LabelFrame(master=root, height=200, text=" gathering data...")
+    data_frame = tk.LabelFrame(master=report_tab, height=200, text=" gathering data...")
     dt = get_previous_month_end(date.today())
 
     data_calendar = Calendar(
@@ -176,9 +255,9 @@ def show():
         day=dt.day,
     )
     data_calendar.grid(row=0, column=0)
-    tk.Button(master=data_frame, text="CREATE!", command=cb_run_report).grid(
-        row=1, column=0
-    )
+    tk.Button(
+        master=data_frame, text="FETCH GIT LOG", command=cb_get_git_log_data
+    ).grid(row=1, column=0)
 
     data_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
 

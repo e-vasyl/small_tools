@@ -14,6 +14,7 @@ def cli(ctx):
 @cli.command()
 def init_db():
     """initialize DB on first run"""
+
     print("Initialize DB!")
     cwpl.init_db()
 
@@ -21,6 +22,7 @@ def init_db():
 @cli.command()
 def run():
     """run CWPL report generator [DEFAULT]"""
+
     print("Run!")
     cwpl.show()
 
