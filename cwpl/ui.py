@@ -219,7 +219,7 @@ def show():
         config[cfg.name] = cfg.value
 
     root = tk.Tk()
-    root.geometry("1600x800")
+    root.geometry("1600x600")
     root.title("CWPL generator")
 
     # create tab control
@@ -307,6 +307,12 @@ def show():
     settings_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
     settings_frame.columnconfigure(1, weight=1)
 
+    # TODO: remove?
+    # filler tab in the bottom
+    # tk.Frame(master=config_tab).pack(side=tk.BOTTOM, expand=True, fill=tk.BOTH)
+
+    ### REPORT TAB
+
     # gather data
     data_frame = tk.LabelFrame(master=report_tab, height=200, text=" gathering data...")
     dt = get_previous_month_end(date.today())
@@ -333,11 +339,14 @@ def show():
     treeview_data.heading(Entry.MESSAGE, text="Message")
     treeview_data.grid(row=0, column=1, rowspan=2, sticky=tk.NSEW)
 
-    __scroll_treeview_data = ttk.Scrollbar(
-        data_frame, orient=tk.VERTICAL, command=treeview_data.yview
+    def create_vs(master, owner):
+        vs = ttk.Scrollbar(master, orient=tk.VERTICAL, command=owner.yview)
+        owner.configure(yscrollcommand=vs.set)
+        return vs
+
+    create_vs(treeview_data, treeview_data).grid(
+        row=0, column=2, rowspan=2, sticky=tk.NS
     )
-    __scroll_treeview_data.grid(row=0, column=2, rowspan=2, sticky=tk.NS)
-    treeview_data.configure(yscrollcommand=__scroll_treeview_data.set)
 
     # TODO: remove panel?
     __date_btn_panel = tk.Frame(master=data_frame)
@@ -346,6 +355,27 @@ def show():
 
     data_frame.pack(side=tk.TOP, anchor=tk.N, expand=True, fill=tk.X, pady=10)
     data_frame.columnconfigure(1, weight=1)
+
+    report_frame = tk.Frame(master=report_tab)
+    # TODO: fix text area
+    __report_text_frame = tk.Frame(master=report_frame)
+    report_text = tk.Text(master=__report_text_frame, height=100, width=100)
+    report_text.config(spacing3=5, spacing2=2)
+    # report_text.grid(row=0, column=0, sticky=tk.NSEW)
+    report_text.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+    __report_text_frame.grid(row=0, column=0, sticky=tk.NSEW)
+    create_vs(report_frame, report_text).grid(row=0, column=1, sticky=tk.NS)
+
+    tk.Button(
+        master=report_frame,
+        text="CLEAR",
+        command=lambda: report_text.delete("1.0", tk.END),
+    ).grid(row=0, column=2, sticky=tk.S)
+    # tk.Frame(master=report_frame).pack(side=tk.LEFT, anchor=tk.W, expand=True, fill=tk.BOTH)
+
+    report_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+    report_frame.columnconfigure(0, weight=1)
+    report_frame.rowconfigure(0, weight=1)
 
     # Update list of folders
     list_all_folders()
