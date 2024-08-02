@@ -20,11 +20,11 @@ use run.sh script to run python tools
 ./run.sh TOOL_NAME [OPTIONS]
 ```
 
-
+# TOOLS:
 
 ## CWPL
 
-Creative Works PL reports
+Creative Works PL reports tool
 
 
 to initialize it on first run:
@@ -40,3 +40,17 @@ to run CWPL reports generator:
 ```
 
 
+## JOBSMEMO
+
+Tool for managing memos about job applications
+
+to initialize it on first run:
+```
+./init.sh jobsmemo
+./run.sh jobsmemo init-db
+```
+
+to run tool's ui:
+```
+./run.sh jobsmemo
+```
