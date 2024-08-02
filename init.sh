@@ -1,5 +1,15 @@
 #!/usr/bin/bash
 
-python3 -m venv env
-source env/bin/activate
-pip install -r requirements.txt
+TOOL=$1
+
+TOOLREQ="${TOOL}.requirements.txt"
+TOOLENV=".venv_${TOOL}"
+
+if [ ! -f $TOOLREQ ]; then
+    echo "Tool requirements file '${TOOLREQ}' not found"
+    exit 1
+fi
+
+python3 -m venv $TOOLENV
+source $TOOLENV/bin/activate
+pip install -r $TOOLREQ

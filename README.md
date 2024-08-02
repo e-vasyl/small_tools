@@ -10,14 +10,14 @@ Usage:
 to initialize python environment in the beginning
 
 ```
-./init.sh 
+./init.sh TOOL_NAME
 ```
 
 
 use run.sh script to run python tools
 
 ```
-./run.sh TOOL_NAME.py [OPTIONS]
+./run.sh TOOL_NAME [OPTIONS]
 ```
 
 
@@ -27,15 +27,16 @@ use run.sh script to run python tools
 Creative Works PL reports
 
 
-to initialize database on first run:
+to initialize it on first run:
 ```
-./run.sh cwpl.py init-db
+./init.sh cwpl
+./run.sh cwpl init-db
 ```
 
 to run CWPL reports generator:
 
 ```
-./run.sh cwpl.py
+./run.sh cwpl
 ```
 
 
