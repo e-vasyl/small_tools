@@ -40,17 +40,17 @@ to run CWPL reports generator:
 ```
 
 
-## JOBSMEMO
+## JAMS
 
 Tool for managing memos about job applications
 
 to initialize it on first run:
 ```
-./init.sh jobsmemo
-./run.sh jobsmemo init-db
+./init.sh jams
+./run.sh jams init-db
 ```
 
 to run tool's ui:
 ```
-./run.sh jobsmemo
+./run.sh jams
 ```
