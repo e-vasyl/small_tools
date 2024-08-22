@@ -3,6 +3,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 import click
+from db import db
 from ui import launch_server
 
 
@@ -19,7 +20,7 @@ def init_db():
     """initialize DB on first run"""
 
     print("Initialize DB!")
-    # cwpl.init_db()
+    db.init_db()
 
 
 @cli.command()
