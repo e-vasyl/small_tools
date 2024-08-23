@@ -1,3 +1,4 @@
+from enum import Enum
 import sqlalchemy as sa
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
@@ -27,13 +28,48 @@ class User(Base):
         return f"User({self.id!r},'{self.name!r}')"
 
 
+class ConfBool(Enum):
+    Y = "Y"
+    N = "N"
+
+    def int(self):
+        if self == ConfBool.Y:
+            return 1
+        return 0
+
+    def __invert__(self):
+        if self == ConfBool.Y:
+            return ConfBool.N
+        return ConfBool.Y
+
+    @staticmethod
+    def from_int(value):
+        if value:
+            return ConfBool.Y
+        return ConfBool.N
+
+    @staticmethod
+    def from_string(value):
+        if value not in [i.value for i in ConfBool]:
+            raise ValueError(f"Invalid value: {value}")
+        return ConfBool(value)
+
+
 class Config(Base):
+    # names
     DEF_DATE_FORMAT = "date_format"
     DEF_GIT_LOG_FORMAT = "git_log_format"
+    DEF_ENTRY_LOG_FORMAT = "entry_log_format"
+    DEF_GIT_LOG_IN_BRANCHES = "git_log_in_branches"
+    DEF_GIT_LOG_BRANCHES = "git_log_branches"
+    # default values:
     DEF_DATE_FORMAT_VALUE = r"%a %b %d %H:%M:%S %Y %z"
     DEF_GIT_LOG_FORMAT_VALUE = (
         r'{"commit": "%H", "author": "%an", "date": "%ad", "message": "%f"},'
     )
+    DEF_ENTRY_LOG_FORMAT_VALUE = r"*Commit*: {commit}\n*Date*: {date}\n\n{message}\n"
+    DEF_GIT_LOG_IN_BRANCHES_VALUE = ConfBool.N.value
+    DEF_GIT_LOG_BRANCHES_VALUE = "*"
 
     __tablename__ = "config"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -53,14 +89,17 @@ def init_db():
 
     with Session(sql_engine) as session:
         session.execute(sa.delete(Config))
-        session.add(
-            Config(name=Config.DEF_DATE_FORMAT, value=Config.DEF_DATE_FORMAT_VALUE),
-        )
-        session.add(
-            Config(
-                name=Config.DEF_GIT_LOG_FORMAT, value=Config.DEF_GIT_LOG_FORMAT_VALUE
-            ),
-        )
+        configs = [
+            Config(name=name, value=value)
+            for name, value in [
+                (Config.DEF_DATE_FORMAT, Config.DEF_DATE_FORMAT_VALUE),
+                (Config.DEF_GIT_LOG_FORMAT, Config.DEF_GIT_LOG_FORMAT_VALUE),
+                (Config.DEF_GIT_LOG_IN_BRANCHES, Config.DEF_GIT_LOG_IN_BRANCHES_VALUE),
+                (Config.DEF_GIT_LOG_BRANCHES, Config.DEF_GIT_LOG_BRANCHES_VALUE),
+                (Config.DEF_ENTRY_LOG_FORMAT, Config.DEF_ENTRY_LOG_FORMAT_VALUE),
+            ]
+        ]
+        session.add_all(configs)
         session.commit()
 
 
