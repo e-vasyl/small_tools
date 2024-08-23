@@ -5,6 +5,7 @@ import os
 import subprocess
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from tkcalendar import Calendar
 
 from db import get_all_users, add_user, delete_users_by_name
@@ -99,7 +100,7 @@ def show():
     """Shows Tk UI"""
 
     def cb_add_folder():
-        folder = tk.filedialog.askdirectory()
+        folder = filedialog.askdirectory()
         if not folder:
             return
 
@@ -200,6 +201,26 @@ def show():
             transform_log_entry(entry, date_format) for entry in filtered_git_log
         ]
 
+        # delete entries with same commit
+        unique_commits = {}
+        for entry in entries:
+            entry_commit = entry[Entry.COMMIT]
+            found_same = False
+            if entry_commit in unique_commits:
+                # check that messages are the same
+                # if they are different - then it could be a coincidence
+                for i in unique_commits[entry_commit]:
+                    if i[Entry.MESSAGE] == entry[Entry.MESSAGE]:
+                        found_same = True
+                        break
+            else:
+                unique_commits[entry_commit] = []
+            if found_same:
+                entries.remove(entry)
+            else:
+                unique_commits[entry_commit].append(entry)
+
+        # sort commits by date
         entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
 
         for entry in entries:
@@ -372,8 +393,11 @@ def show():
         master=data_frame, columns=(Entry.AUTHOR, Entry.DATE, Entry.MESSAGE)
     )
     treeview_data.heading("#0", text="Commit")
+    treeview_data.column("#0", minwidth=0, width=300, stretch=tk.NO)
     treeview_data.heading(Entry.AUTHOR, text="Author")
+    treeview_data.column(Entry.AUTHOR, minwidth=0, width=200, stretch=tk.NO)
     treeview_data.heading(Entry.DATE, text="Date")
+    treeview_data.column(Entry.DATE, minwidth=0, width=200, stretch=tk.NO)
     treeview_data.heading(Entry.MESSAGE, text="Message")
     treeview_data.grid(row=0, column=1, rowspan=2, sticky=tk.NSEW)
 
