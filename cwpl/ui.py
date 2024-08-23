@@ -60,10 +60,27 @@ def get_git_log(path, after, git_log_format, branches=None):
             joined_res = joined_res[:-1]
 
         json_res = "[" + joined_res + "]"
-        # print(json_res)
+
+        json_res_fixed = ""
+        if not joined_res:
+            json_res_fixed = json_res
+        else:
+            for l in json_res.replace("},{", "},\n{").splitlines():
+                # print(l)
+                match_msg = re.match(r"(^.*\"message\"\s*:\s*\")(.*)(\"},?)", l)
+                if match_msg is None:
+                    raise Exception(f"ERROR: wrong wormat: no message field!")
+                msg_groups = match_msg.groups()
+                if '"' in msg_groups[1]:
+                    json_res_fixed += (
+                        msg_groups[0] + msg_groups[1].replace('"', '\\"') + msg_groups[2]
+                    )
+                else:
+                    json_res_fixed += l
+        # print("=" * 10)
 
         # try to parse JSON
-        res = json.loads(json_res)
+        res = json.loads(json_res_fixed)
     except Exception as e:
         print(f"EXCEPTION: {e}")
     finally:
