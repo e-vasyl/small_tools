@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 import json
 from os import path
 import os
+import re
 import subprocess
 import tkinter as tk
 from tkinter import ttk
