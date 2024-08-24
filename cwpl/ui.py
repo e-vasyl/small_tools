@@ -562,7 +562,7 @@ def show():
         show = var_entry_show_custom_id.get()
         if show:
             treeview_data.column(
-                Entry.CUSTOM_ID, minwidth=0, width=300, stretch=tk.NO, anchor=tk.E
+                Entry.CUSTOM_ID, minwidth=0, width=340, stretch=tk.NO, anchor=tk.E
             )
         else:
             treeview_data.column(
