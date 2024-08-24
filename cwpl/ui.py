@@ -99,6 +99,7 @@ class Entry:
     MESSAGE = "message"
     DATE = "date"
     DATE_PARSED = __PREFIX_PARSED + DATE
+    CUSTOM_ID = __PREFIX_PARSED + "custom_id"
 
     @staticmethod
     def get_keys(item):
@@ -128,6 +129,18 @@ def transform_log_entry(git_log_entry, date_format):
 
     date = datetime.strptime(git_log_entry[Entry.DATE], date_format)
     git_log_entry[Entry.DATE_PARSED] = date
+
+    # TODO: customize it
+    custom_id_match = re.search(
+        r"change-id\s*:\s*([A-Za-z0-9]+)",
+        git_log_entry[Entry.MESSAGE],
+        flags=re.I,
+    )
+    if custom_id_match:
+        git_log_entry[Entry.CUSTOM_ID] = custom_id_match.group(1)
+    else:
+        git_log_entry[Entry.CUSTOM_ID] = ""
+
     return git_log_entry
 
 
@@ -214,14 +227,11 @@ def show():
         for user in users:
             users_list.insert(tk.END, user)
 
-    def cb_get_git_log_data():
-        for c in treeview_data.get_children():
-            treeview_data.delete(c)
-
+    def get_git_log_entries():
         folders = folders_list.get(0, tk.END)
         users = users_list.get(0, tk.END)
         if not folders:
-            return
+            return []
 
         git_log_format = var_git_log_format.get()
         date_format = var_date_format.get()
@@ -230,7 +240,7 @@ def show():
         if unexisting_folders:
             folder_error_str = r"\n".join(unexisting_folders)
             tk.messagebox.showerror("Error", f"Folders not found: {folder_error_str}")
-            return
+            return []
 
         after = data_calendar.get_date()
         branches_names = None
@@ -242,7 +252,7 @@ def show():
             folders[0], after, git_log_format, branches=branches_names
         )
         if not raw_git_log:
-            return
+            return []
 
         filtered_git_log = []
         for git_log in raw_git_log:
@@ -274,8 +284,40 @@ def show():
             else:
                 unique_commits[entry_commit].append(entry)
 
+        return entries
+
+    git_log_entries = {"data": [], "sort": (Entry.DATE_PARSED, True)}
+
+    def set_columns_sort(column_name):
+        sort_field, is_asc = git_log_entries["sort"]
+        # transform to data key
+        if column_name == Entry.DATE:
+            column_name = Entry.DATE_PARSED
+
+        if sort_field == column_name:
+            is_asc = not is_asc
+        else:
+            sort_field = column_name
+            is_asc = True
+
+        git_log_entries["sort"] = (column_name, is_asc)
+        set_git_log_data_tv()
+
+    def cb_get_git_log_data():
+        git_log_entries["data"] = get_git_log_entries()
+        set_git_log_data_tv()
+
+    def set_git_log_data_tv():
+        entries = git_log_entries["data"]
+        treeview_data.delete(*treeview_data.get_children())
+        if not entries:
+            return
+
+        column_sort_field, column_sort_asc = git_log_entries["sort"]
         # sort commits by date
-        entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
+        entries.sort(
+            key=lambda entry: entry[column_sort_field], reverse=not column_sort_asc
+        )
 
         for entry in entries:
             store_dict = {k: entry[k] for k in Entry.get_keys(entry)}
@@ -286,7 +328,13 @@ def show():
                 "",
                 tk.END,
                 text=entry[Entry.COMMIT],
-                values=(entry[Entry.AUTHOR], entry[Entry.DATE], lines[0], entry_str),
+                values=(
+                    entry[Entry.AUTHOR],
+                    entry[Entry.DATE],
+                    lines[0],
+                    entry[Entry.CUSTOM_ID],
+                    entry_str,
+                ),
             )
             for line in lines[1:]:
                 treeview_data.insert(line_item, tk.END, text="", values=("", "", line))
@@ -433,7 +481,7 @@ def show():
 
         tk.Label(master=master, text=text).grid(row=row, column=0)
         __cb = tk.Checkbutton(master=master, variable=var_value)
-        __cb.grid(row=row, column=1, sticky=tk.W)
+        __cb.grid(row=row, column=1, sticky=tk.W, padx=(0, 5))
         tk.Button(master=settings_frame, text="default", command=cb_set_default).grid(
             row=row, column=2
         )
@@ -441,10 +489,11 @@ def show():
 
         return (var_value, __cb)
 
+    settings_frame_row_idx = 0
     var_date_format, _ = create_config_ui(
         settings_frame,
         "date format: ",
-        0,
+        settings_frame_row_idx,
         Config.DEF_DATE_FORMAT,
         Config.DEF_DATE_FORMAT_VALUE,
     )
@@ -461,19 +510,21 @@ def show():
             print(e)
         return False
 
+    settings_frame_row_idx += 1
     var_git_log_format, _ = create_config_ui(
         settings_frame,
         "git log format: ",
-        1,
+        settings_frame_row_idx,
         Config.DEF_GIT_LOG_FORMAT,
         Config.DEF_GIT_LOG_FORMAT_VALUE,
         validator_cb=edit_git_log_validator,
     )
 
+    settings_frame_row_idx += 1
     var_git_log_in_branches, _ = create_config_ui_bool(
         settings_frame,
         "look in branches: ",
-        2,
+        settings_frame_row_idx,
         Config.DEF_GIT_LOG_IN_BRANCHES,
         Config.DEF_GIT_LOG_IN_BRANCHES_VALUE,
     )
@@ -488,13 +539,38 @@ def show():
             print(e)
         return False
 
+    settings_frame_row_idx += 1
     var_entry_log_format, _ = create_config_ui(
         settings_frame,
         "report format: ",
-        3,
+        settings_frame_row_idx,
         Config.DEF_ENTRY_LOG_FORMAT,
         Config.DEF_ENTRY_LOG_FORMAT_VALUE,
         validator_cb=edit_entry_log_validator,
+    )
+
+    settings_frame_row_idx += 1
+    var_entry_show_custom_id, _ = create_config_ui_bool(
+        settings_frame,
+        "show custom id: ",
+        settings_frame_row_idx,
+        Config.DEF_ENTRY_SHOW_CUSTOM_ID,
+        Config.DEF_ENTRY_SHOW_CUSTOM_ID_VALUE,
+    )
+
+    def on_toggle_show_custom_id_column():
+        show = var_entry_show_custom_id.get()
+        if show:
+            treeview_data.column(
+                Entry.CUSTOM_ID, minwidth=0, width=300, stretch=tk.NO, anchor=tk.E
+            )
+        else:
+            treeview_data.column(
+                Entry.CUSTOM_ID, minwidth=0, width=0, stretch=tk.NO, anchor=tk.E
+            )
+
+    var_entry_show_custom_id.trace_add(
+        "write", lambda *args: on_toggle_show_custom_id_column()
     )
 
     settings_frame.grid(row=2, column=0, sticky=tk.NSEW)
@@ -523,16 +599,25 @@ def show():
         master=data_frame, text="FETCH GIT LOG", command=cb_get_git_log_data
     ).grid(row=1, column=0, sticky=tk.NW)
 
+    def _g_cb(name):
+        return lambda: set_columns_sort(name)
+
     treeview_data = ttk.Treeview(
-        master=data_frame, columns=(Entry.AUTHOR, Entry.DATE, Entry.MESSAGE)
+        master=data_frame,
+        columns=(Entry.AUTHOR, Entry.DATE, Entry.MESSAGE, Entry.CUSTOM_ID),
     )
-    treeview_data.heading("#0", text="Commit")
+    treeview_data.heading("#0", text="Commit", command=_g_cb(Entry.COMMIT))
     treeview_data.column("#0", minwidth=0, width=300, stretch=tk.NO)
-    treeview_data.heading(Entry.AUTHOR, text="Author")
+    treeview_data.heading(Entry.AUTHOR, text="Author", command=_g_cb(Entry.AUTHOR))
     treeview_data.column(Entry.AUTHOR, minwidth=0, width=200, stretch=tk.NO)
-    treeview_data.heading(Entry.DATE, text="Date")
+    treeview_data.heading(Entry.DATE, text="Date", command=_g_cb(Entry.DATE))
     treeview_data.column(Entry.DATE, minwidth=0, width=200, stretch=tk.NO)
-    treeview_data.heading(Entry.MESSAGE, text="Message")
+    treeview_data.heading(Entry.MESSAGE, text="Message", command=_g_cb(Entry.MESSAGE))
+    treeview_data.heading(
+        Entry.CUSTOM_ID, text="Custom ID", command=_g_cb(Entry.CUSTOM_ID)
+    )
+    on_toggle_show_custom_id_column()
+
     treeview_data.grid(row=0, column=1, rowspan=2, sticky=tk.NSEW)
 
     def create_vs(master, owner):
