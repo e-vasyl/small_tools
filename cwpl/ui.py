@@ -73,7 +73,9 @@ def get_git_log(path, after, git_log_format, branches=None):
                 msg_groups = match_msg.groups()
                 if '"' in msg_groups[1]:
                     json_res_fixed += (
-                        msg_groups[0] + msg_groups[1].replace('"', '\\"') + msg_groups[2]
+                        msg_groups[0]
+                        + msg_groups[1].replace('"', '\\"')
+                        + msg_groups[2]
                     )
                 else:
                     json_res_fixed += l
@@ -99,14 +101,21 @@ class Entry:
     DATE_PARSED = __PREFIX_PARSED + DATE
 
     @staticmethod
-    def get_keys():
+    def get_keys(item):
+
+        if isinstance(item, dict):
+            dict_keys = item.keys()
+            __get_attr = lambda key: key
+        else:
+            dict_keys = item.__dict__.keys()
+            __get_attr = lambda key: getattr(item, key)
         return [
-            getattr(Entry, key)
-            for key in Entry.__dict__.keys()
+            __get_attr(key)
+            for key in dict_keys
             if not (
                 key.startswith("_")
-                or callable(getattr(Entry, key))
-                or getattr(Entry, key).startswith(Entry.__PREFIX_PARSED)
+                or callable(__get_attr(key))
+                or __get_attr(key).startswith(Entry.__PREFIX_PARSED)
             )
         ]
 
@@ -269,7 +278,7 @@ def show():
         entries.sort(key=lambda entry: entry[Entry.DATE_PARSED])
 
         for entry in entries:
-            store_dict = {k: entry[k] for k in Entry.get_keys()}
+            store_dict = {k: entry[k] for k in Entry.get_keys(entry)}
             entry_str = json.dumps(store_dict)
             lines = [l for l in entry[Entry.MESSAGE].split("\n") if l.strip()]
 
@@ -307,7 +316,7 @@ def show():
                 report_entry_log_format.format(**report).replace(r"\n", "\n"),
             )
 
-    config = {}
+    config = Config.DEF_CONFIG.copy()
     for cfg in get_all_configs():
         config[cfg.name] = cfg.value
 
@@ -356,7 +365,9 @@ def show():
     # settings frame
     settings_frame = tk.LabelFrame(master=config_tab, text=" settings: ")
 
-    def create_config_ui(master, text, row, config_name, default_value):
+    def create_config_ui(
+        master, text, row, config_name, default_value, validator_cb=None
+    ):
         var_value = tk.StringVar(value=config[config_name])
 
         def cb_value_changed(event):
@@ -382,6 +393,21 @@ def show():
             row=row, column=2
         )
         __entry.bind("<FocusOut>", cb_value_changed)
+
+        if validator_cb:
+
+            def cb_validate_value(*args):
+                is_valid = validator_cb(var_value.get())
+                if is_valid or is_valid == None:
+                    color = "White"
+                else:
+                    color = "Red"
+                __entry.config({"background": color})
+
+            # add validator callback
+            var_value.trace_add("write", cb_validate_value)
+            # run validator on init
+            cb_validate_value()
 
         return (var_value, __entry)
 
@@ -422,12 +448,26 @@ def show():
         Config.DEF_DATE_FORMAT,
         Config.DEF_DATE_FORMAT_VALUE,
     )
+
+    def edit_git_log_validator(str_value):
+        try:
+            if not str_value.endswith(","):
+                return False
+            entity_val = json.loads(str_value[:-1])
+            existing_keys = set(entity_val.keys())
+            expected_keys = set(Entry.get_keys(Entry))
+            return expected_keys.issubset(existing_keys)
+        except Exception as e:
+            print(e)
+        return False
+
     var_git_log_format, _ = create_config_ui(
         settings_frame,
         "git log format: ",
         1,
         Config.DEF_GIT_LOG_FORMAT,
         Config.DEF_GIT_LOG_FORMAT_VALUE,
+        validator_cb=edit_git_log_validator,
     )
 
     var_git_log_in_branches, _ = create_config_ui_bool(
@@ -438,30 +478,24 @@ def show():
         Config.DEF_GIT_LOG_IN_BRANCHES_VALUE,
     )
 
-    var_entry_log_format, edit_entry_log_format = create_config_ui(
+    def edit_entry_log_validator(str_value):
+        try:
+            entity_str = var_git_log_format.get()
+            entity_val = json.loads(entity_str[:-1])
+            s = str_value.format(Entry, **entity_val)
+            return True
+        except Exception as e:
+            print(e)
+        return False
+
+    var_entry_log_format, _ = create_config_ui(
         settings_frame,
         "report format: ",
         3,
         Config.DEF_ENTRY_LOG_FORMAT,
         Config.DEF_ENTRY_LOG_FORMAT_VALUE,
+        validator_cb=edit_entry_log_validator,
     )
-
-    def edit_entry_log_format_callback():
-        try:
-            str_val = var_entry_log_format.get()
-            test_dict = {k: "x" for k in Entry.get_keys()}
-            s = str_val.format(Entry, **test_dict)
-            edit_entry_log_format.config({"background": "White"})
-        except Exception as e:
-            edit_entry_log_format.config({"background": "Red"})
-            print(e)
-
-    # add validator
-    var_entry_log_format.trace_add(
-        "write", lambda *args: edit_entry_log_format_callback()
-    )
-    # and run it once
-    edit_entry_log_format_callback()
 
     settings_frame.grid(row=2, column=0, sticky=tk.NSEW)
     settings_frame.columnconfigure(1, weight=1)

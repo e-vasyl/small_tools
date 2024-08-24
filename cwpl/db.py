@@ -63,13 +63,21 @@ class Config(Base):
     DEF_GIT_LOG_IN_BRANCHES = "git_log_in_branches"
     DEF_GIT_LOG_BRANCHES = "git_log_branches"
     # default values:
-    DEF_DATE_FORMAT_VALUE = r"%a %b %d %H:%M:%S %Y %z"
+    DEF_DATE_FORMAT_VALUE = r"%Y-%m-%d %H:%M:%S %z"
     DEF_GIT_LOG_FORMAT_VALUE = (
-        r'{"commit": "%H", "author": "%an", "date": "%ad", "message": "%f"},'
+        r'{"commit": "%H", "author": "%aN <%ae>", "date": "%ci", "message": "%B"},'
     )
-    DEF_ENTRY_LOG_FORMAT_VALUE = r"*Commit*: {commit}\n*Date*: {date}\n\n{message}\n"
+    DEF_ENTRY_LOG_FORMAT_VALUE = r"*Commit*: {commit}\n*Date*: {date}\n\n{message}\n\n"
     DEF_GIT_LOG_IN_BRANCHES_VALUE = ConfBool.N.value
     DEF_GIT_LOG_BRANCHES_VALUE = "*"
+
+    DEF_CONFIG = {
+        DEF_DATE_FORMAT: DEF_DATE_FORMAT_VALUE,
+        DEF_GIT_LOG_FORMAT: DEF_GIT_LOG_FORMAT_VALUE,
+        DEF_ENTRY_LOG_FORMAT: DEF_ENTRY_LOG_FORMAT_VALUE,
+        DEF_GIT_LOG_IN_BRANCHES: DEF_GIT_LOG_IN_BRANCHES_VALUE,
+        DEF_GIT_LOG_BRANCHES: DEF_GIT_LOG_BRANCHES_VALUE,
+    }
 
     __tablename__ = "config"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -91,13 +99,7 @@ def init_db():
         session.execute(sa.delete(Config))
         configs = [
             Config(name=name, value=value)
-            for name, value in [
-                (Config.DEF_DATE_FORMAT, Config.DEF_DATE_FORMAT_VALUE),
-                (Config.DEF_GIT_LOG_FORMAT, Config.DEF_GIT_LOG_FORMAT_VALUE),
-                (Config.DEF_GIT_LOG_IN_BRANCHES, Config.DEF_GIT_LOG_IN_BRANCHES_VALUE),
-                (Config.DEF_GIT_LOG_BRANCHES, Config.DEF_GIT_LOG_BRANCHES_VALUE),
-                (Config.DEF_ENTRY_LOG_FORMAT, Config.DEF_ENTRY_LOG_FORMAT_VALUE),
-            ]
+            for name, value in Config.DEFAULT_CONFIGS.items()
         ]
         session.add_all(configs)
         session.commit()
@@ -186,7 +188,10 @@ def update_config_by_name(config_name, new_config_value):
     with Session(sql_engine, expire_on_commit=False) as session:
         config = session.query(Config).filter(Config.name == config_name).first()
         if config is None:
-            return None
-        config.value = new_config_value
+            print(f"Config {config_name} not found! Creating ...")
+            config = Config(name=config_name, value=new_config_value)
+            session.add(config)
+        else:
+            config.value = new_config_value
         session.commit()
         return config
