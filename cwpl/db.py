@@ -62,6 +62,7 @@ class Config(Base):
     DEF_ENTRY_LOG_FORMAT = "entry_log_format"
     DEF_GIT_LOG_IN_BRANCHES = "git_log_in_branches"
     DEF_GIT_LOG_BRANCHES = "git_log_branches"
+    DEF_ENTRY_SHOW_CUSTOM_ID = "entry_show_custom_id"
     # default values:
     DEF_DATE_FORMAT_VALUE = r"%Y-%m-%d %H:%M:%S %z"
     DEF_GIT_LOG_FORMAT_VALUE = (
@@ -70,6 +71,7 @@ class Config(Base):
     DEF_ENTRY_LOG_FORMAT_VALUE = r"*Commit*: {commit}\n*Date*: {date}\n\n{message}\n\n"
     DEF_GIT_LOG_IN_BRANCHES_VALUE = ConfBool.N.value
     DEF_GIT_LOG_BRANCHES_VALUE = "*"
+    DEF_ENTRY_SHOW_CUSTOM_ID_VALUE = ConfBool.N.value
 
     DEF_CONFIG = {
         DEF_DATE_FORMAT: DEF_DATE_FORMAT_VALUE,
@@ -77,6 +79,7 @@ class Config(Base):
         DEF_ENTRY_LOG_FORMAT: DEF_ENTRY_LOG_FORMAT_VALUE,
         DEF_GIT_LOG_IN_BRANCHES: DEF_GIT_LOG_IN_BRANCHES_VALUE,
         DEF_GIT_LOG_BRANCHES: DEF_GIT_LOG_BRANCHES_VALUE,
+        DEF_ENTRY_SHOW_CUSTOM_ID: DEF_ENTRY_SHOW_CUSTOM_ID_VALUE,
     }
 
     __tablename__ = "config"
