@@ -82,7 +82,7 @@ def get_git_log(path, after, git_log_format, branches=None):
         # print("=" * 10)
 
         # try to parse JSON
-        res = json.loads(json_res_fixed)
+        res = json.loads(json_res_fixed, strict=False)
     except Exception as e:
         print(f"EXCEPTION: {e}")
     finally:
